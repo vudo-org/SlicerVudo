@@ -89,15 +89,9 @@ imageView.reshape((vudo.bufferSize,))
 print("Buffer size is %d" % vudo.bufferSize)
 print(f"pixel size in bytes: {vudo.bufferSize/vudo.WIDTH/vudo.HEIGHT/vudo.DEPTH}")
 imageArray = numpy.frombuffer(imageView, dtype=numpy.float32, count=int(vudo.bufferSize/4))
-imageArray = imageArray.reshape((vudo.WIDTH, vudo.HEIGHT, vudo.DEPTH))
-
-scalarVolumeArray = numpy.empty_like(imageArray)
-
-print(imageArray.shape)
-def assign(dest, src):
-    dest[:] = src
-time = timeit.timeit(lambda : assign(scalarVolumeArray, imageArray), number=1)
-print(f"Time to assign: {time}")
+imageArray = imageArray.reshape((vudo.WIDTH, vudo.HEIGHT, vudo.DEPTH, 4))
+scalarVolumeArray = numpy.empty((vudo.WIDTH, vudo.HEIGHT, vudo.DEPTH))
+scalarVolumeArray = imageArray[:,:,:,0]
 
 time = timeit.timeit(lambda : print(scalarVolumeArray.mean()), number=1)
 print(f"Time to compute mean: {time}")

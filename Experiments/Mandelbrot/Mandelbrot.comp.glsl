@@ -40,8 +40,6 @@ void main() {
   z = vec2(0.0);
   const int maxIterations = 128;
   for (int i = 0; i<maxIterations; i++)
-  const int M =128;
-  for (int i = 0; i<M; i++)
   {
     z = vec2(z.x*z.x - z.y*z.y, 2.*z.x*z.y) + c;
     if (dot(z, z) > 2) break;
