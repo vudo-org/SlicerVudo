@@ -5,13 +5,6 @@
  * TODO: make a vudo.h to factor out the common stuff
  */
 
-// to be replaced by at compile time
-// TODO: should just be a method
-#ifdef SPV_FILE_PATH
-# undef SPV_FILE_PATH
-#endif
-#define SPV_FILE_PATH %%_SPV_FILE_PATH_%%
-
 #include <vulkan/vulkan.h>
 
 #include <vector>
@@ -101,7 +94,7 @@ class DeviceQueue {
 
 class ComputePipeline {
     protected:
-        DeviceQueue *deviceQueue; 
+        DeviceQueue *deviceQueue;
 
     public:
         ComputePipeline() {
@@ -113,7 +106,7 @@ class ComputePipeline {
 
 class ComputeBuffer {
     protected:
-        DeviceQueue *deviceQueue; 
+        DeviceQueue *deviceQueue;
 
     public:
         ComputeBuffer() {
@@ -132,7 +125,7 @@ class ComputeBuffer {
 
 class ComputeAlgorithm {
     protected:
-        DeviceQueue *deviceQueue; 
+        DeviceQueue *deviceQueue;
 
     public:
         ComputeAlgorithm() {
@@ -146,7 +139,7 @@ class ComputeAlgorithm {
     // arbitrary number of read-write buffers
     // workgroup size?
     // pipeline here or queue?
-    // commandPool, commandBuffer? 
+    // commandPool, commandBuffer?
 
 };
 
@@ -349,10 +342,12 @@ uint32_t ComputeBuffer::findMemoryType(uint32_t memoryTypeBits, VkMemoryProperty
 
 class MandelbrotVudo {
 public:
+
     // The pixels of the rendered mandelbrot set are in this format:
     struct Pixel {
         float r, g, b, a;
     };
+    std::string shaderSPIRVPath = "";
 
     void* mappedMemory = nullptr;
 
@@ -457,14 +452,11 @@ public:
 
         // Finally, run the recorded command buffer.
         runCommandBuffer();
-
-        // Clean up all vulkan resources.
-        //cleanup();
     }
 
     void* renderedImage() {
         // Map the buffer memory, so that we can read from it on the CPU.
-        vkMapMemory(device, bufferMemory, 0, bufferSize, 0, &(this->mappedMemory));
+        vkMapMemory(device, bufferMemory, 0, this->bufferSize, 0, &(this->mappedMemory));
         return this->mappedMemory;
     }
 
@@ -745,7 +737,7 @@ public:
 
         VkBufferCreateInfo bufferCreateInfo = {};
         bufferCreateInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-        bufferCreateInfo.size = bufferSize; // buffer size in bytes.
+        bufferCreateInfo.size = this->bufferSize; // buffer size in bytes.
         bufferCreateInfo.usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT; // buffer is used as a storage buffer.
         bufferCreateInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE; // buffer is exclusive to a single queue family at a time.
 
@@ -778,7 +770,8 @@ public:
         this flag.
         */
         allocateInfo.memoryTypeIndex = findMemoryType(
-            memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
+            memoryRequirements.memoryTypeBits,
+            VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
 
         VK_CHECK_RESULT(vkAllocateMemory(device, &allocateInfo, NULL, &bufferMemory)); // allocate memory on device.
 
@@ -859,7 +852,7 @@ public:
         VkDescriptorBufferInfo descriptorBufferInfo = {};
         descriptorBufferInfo.buffer = buffer;
         descriptorBufferInfo.offset = 0;
-        descriptorBufferInfo.range = bufferSize;
+        descriptorBufferInfo.range = this->bufferSize;
 
         VkWriteDescriptorSet writeDescriptorSet = {};
         writeDescriptorSet.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
@@ -914,7 +907,7 @@ public:
         uint32_t filelength;
         // the code in comp.spv was created by running the command:
         // glslangValidator.exe -V shader.comp
-        uint32_t* code = readFile(filelength, SPV_FILE_PATH);
+        uint32_t* code = readFile(filelength, shaderSPIRVPath.c_str());
         VkShaderModuleCreateInfo createInfo = {};
         createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
         createInfo.pCode = code;
@@ -1008,7 +1001,7 @@ public:
         The number of workgroups is specified in the arguments.
         If you are already familiar with compute shaders from OpenGL, this should be nothing new to you.
         */
-        vkCmdDispatch(commandBuffer, 
+        vkCmdDispatch(commandBuffer,
                       (uint32_t)ceil(WIDTH / float(WORKGROUP_SIZE)),
                       (uint32_t)ceil(HEIGHT / float(WORKGROUP_SIZE)),
                       (uint32_t)ceil(DEPTH / float(WORKGROUP_SIZE)));
@@ -1046,7 +1039,9 @@ public:
         and we will not be sure that the command has finished executing unless we wait for the fence.
         Hence, we use a fence here.
         */
+        std::cerr << "waiting for fence...\n";
         VK_CHECK_RESULT(vkWaitForFences(device, 1, &fence, VK_TRUE, 100000000000));
+        std::cerr << "done waiting for fence\n";
 
         vkDestroyFence(device, fence, NULL);
     }
@@ -1093,4 +1088,5 @@ int main() {
 
     return EXIT_SUCCESS;
 }
-}
+
+} // end of namespace

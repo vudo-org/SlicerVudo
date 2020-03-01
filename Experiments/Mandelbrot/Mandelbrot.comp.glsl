@@ -34,14 +34,18 @@ void main() {
 
   // What follows is code for rendering the mandelbrot set.
   vec2 uv = zoom * vec2(x,y);
+  int iterationCount = 0;
   float n = 0.0;
   vec2 c = vec2(-.445, 0.0) +  (uv - 0.5)*(2.0+ 1.7*0.2  ),
   z = vec2(0.0);
+  const int maxIterations = 128;
+  for (int i = 0; i<maxIterations; i++)
   const int M =128;
   for (int i = 0; i<M; i++)
   {
     z = vec2(z.x*z.x - z.y*z.y, 2.*z.x*z.y) + c;
     if (dot(z, z) > 2) break;
+    iterationCount++;
     n++;
   }
 
@@ -49,5 +53,5 @@ void main() {
   uint offset = HEIGHT * WIDTH * gl_GlobalInvocationID.z
                        + WIDTH * gl_GlobalInvocationID.y
                                + gl_GlobalInvocationID.x;
-  imageData[offset].value = vec4(n);
+  imageData[offset].value = vec4(iterationCount);
 }

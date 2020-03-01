@@ -62,7 +62,6 @@ subprocess.run(compileCommand.split())
 # cpp compilation
 print("compiling cpp...")
 mandelbrotCppSource = open(cppSourcePath).read()
-mandelbrotCppSource = mandelbrotCppSource.replace("%%_SPV_FILE_PATH_%%", '"'+shaderSPIRVPath+'"')
 namepaceTag = "cppyy_"+str(time.time()).replace(".", "_")
 mandelbrotCppSource = mandelbrotCppSource.replace("%%_NAMESPACE_TAG_%%", namepaceTag) 
 cppyy.add_include_path(vulkanSDKIncludeDir)
@@ -72,10 +71,14 @@ cppyy.cppdef(mandelbrotCppSource)
 
 # import and use the code
 print("running...")
+print("import...")
 exec("from cppyy.gbl import " + namepaceTag)
 namespace = eval("cppyy.gbl." + namepaceTag)
+print("instance...")
 vudo = namespace.MandelbrotVudo()
+vudo.shaderSPIRVPath = shaderSPIRVPath
 # TODO: put this in a thread 
+print("run...")
 time = timeit.timeit(vudo.run, number=1)
 print(f"Time for vudo.run is: {time}")
 
@@ -83,23 +86,31 @@ print(f"Time for vudo.run is: {time}")
 print("data access...")
 imageView = vudo.renderedImage()
 imageView.reshape((vudo.bufferSize,))
-imageArray = numpy.frombuffer(imageView, dtype=numpy.float32, count=int(vudo.bufferSize/4))
-imageArray = imageArray.reshape((vudo.WIDTH, vudo.HEIGHT, vudo.DEPTH, 4))
-scalarVolumeArray = imageArray[:,:,:,0]
 print("Buffer size is %d" % vudo.bufferSize)
+print(f"pixel size in bytes: {vudo.bufferSize/vudo.WIDTH/vudo.HEIGHT/vudo.DEPTH}")
+imageArray = numpy.frombuffer(imageView, dtype=numpy.float32, count=int(vudo.bufferSize/4))
+imageArray = imageArray.reshape((vudo.WIDTH, vudo.HEIGHT, vudo.DEPTH))
 
-print(scalarVolumeArray.shape)
-print(scalarVolumeArray.min())
-print(scalarVolumeArray.mean())
-print(scalarVolumeArray.max())
+scalarVolumeArray = numpy.empty_like(imageArray)
 
+print(imageArray.shape)
+def assign(dest, src):
+    dest[:] = src
+time = timeit.timeit(lambda : assign(scalarVolumeArray, imageArray), number=1)
+print(f"Time to assign: {time}")
+
+time = timeit.timeit(lambda : print(scalarVolumeArray.mean()), number=1)
+print(f"Time to compute mean: {time}")
+
+print("Updating volume...")
 try:
   vudoVolume = slicer.util.getNode("VudoVolume")
   slicer.util.updateVolumeFromArray(vudoVolume, scalarVolumeArray)
 except slicer.util.MRMLNodeNotFoundException:
-  slicer.util.addVolumeFromArray(scalarVolumeArray, name="VudoVolume")
+  volumeNode = slicer.util.addVolumeFromArray(scalarVolumeArray, name="VudoVolume")
+  slicer.util.setSliceViewerLayers(background=volumeNode)
 
-print("Cleaning up")
+print("Cleaning up...")
 imageView = None
 imageArray = None
 vudo.cleanup()
