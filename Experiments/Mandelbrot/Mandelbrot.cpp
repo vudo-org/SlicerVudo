@@ -16,11 +16,15 @@
 // put code in namespace after static global includes
 namespace %%_NAMESPACE_TAG_%% {
 
+  /*
 #ifdef NDEBUG
 const bool enableValidationLayers = false;
 #else
+*/
 const bool enableValidationLayers = true;
+/*
 #endif
+*/
 
 // Used for validating return values of Vulkan API calls.
 // TODO: what to use instead of the assert - need to bail out
